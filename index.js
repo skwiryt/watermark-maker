@@ -1,30 +1,50 @@
 const Jimp = require('jimp');
 const inquirer = require('inquirer');
+const { existsSync } = require('fs');
 
-const addTextWatermarkToImage = async (inputFile, outputFile, text) => {
-  const image = await Jimp.read(inputFile);
-  const font = await Jimp.loadFont(Jimp.FONT_SANS_32_WHITE);
-  const textData = {
-    text,
-    alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
-  };
-
-  image.print(font, 0, 0, textData, image.getWidth(), image.getHeight());
-  await image.quality(100).writeAsync(outputFile);
+const addTextWatermarkToImage = async (inputFile, outputFile, text, caller) => {
+  if (existsSync(inputFile)) {
+    try {
+      const image = await Jimp.read(inputFile);
+      const font = await Jimp.loadFont(Jimp.FONT_SANS_32_WHITE);
+      const textData = {
+        text,
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
+      };
+      image.print(font, 0, 0, textData, image.getWidth(), image.getHeight());
+      await image.quality(100).writeAsync(outputFile);
+      console.log('Text watermark was added successfully');
+    } catch {
+      console.log('Something went wrong... try again.');
+    }
+  } else {
+    console.log('File has not been found! Try again.');
+  }
+  caller();
 };
 
-const addImageWatermarkToImage = async (inputFile, outputFile, watermarkFile) => {
-  const image = await Jimp.read(inputFile);
-  const watermark = await Jimp.read(watermarkFile);
-  const x = image.getWidth() / 2 - watermark.getWidth() / 2;
-  const y = image.getHeight() / 2 - watermark.getHeight() / 2;
+const addImageWatermarkToImage = async (inputFile, outputFile, watermarkFile, caller) => {
+  if (existsSync(inputFile) && existsSync(watermarkFile)) {
+    try {
+      const image = await Jimp.read(inputFile);
+      const watermark = await Jimp.read(watermarkFile);
+      const x = image.getWidth() / 2 - watermark.getWidth() / 2;
+      const y = image.getHeight() / 2 - watermark.getHeight() / 2;
 
-  image.composite(watermark, x, y, {
-    mode: Jimp.BLEND_SOURCE_OVER,
-    opacitySource: 0.5,
-  });
-  await image.quality(100).writeAsync(outputFile);
+      image.composite(watermark, x, y, {
+        mode: Jimp.BLEND_SOURCE_OVER,
+        opacitySource: 0.5,
+      });
+      await image.quality(100).writeAsync(outputFile);
+      console.log('Image watermark was added successfully');
+    } catch {
+      console.log('Something went wrong... try again.');
+    }
+  } else {
+    console.log('File has not been found! Try again.');
+  }
+  caller();
 };
 const prepareOutputFileName = (inputName) => {
   const [name, ext] = inputName.split('.');
@@ -59,7 +79,7 @@ const startApp = async () => {
       message: 'Type your watermark text:',
     }]);
     options.watermarkText = text.value;
-    addTextWatermarkToImage(`./img/${options.inputImage}`, prepareOutputFileName(options.inputImage), options.watermarkText);
+    addTextWatermarkToImage(`./img/${options.inputImage}`, prepareOutputFileName(options.inputImage), options.watermarkText, startApp);
   } else {
     const image = await inquirer.prompt([{
       name: 'filename',
@@ -68,7 +88,7 @@ const startApp = async () => {
       default: 'logo.png',
     }]);
     options.watermarkImage = image.filename;
-    addImageWatermarkToImage(`./img/${options.inputImage}`, prepareOutputFileName(options.inputImage), `./img/${options.watermarkImage}`);
+    addImageWatermarkToImage(`./img/${options.inputImage}`, prepareOutputFileName(options.inputImage), `./img/${options.watermarkImage}`, startApp);
   }
 };
 
